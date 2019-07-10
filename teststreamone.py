@@ -60,7 +60,11 @@ print(data.dtype)
 
 X, Y = createPatches(data, indian_pines_gt, windowSize=15)
 
-print(X.shape,Y.shape)
+Ytsne = Y
+
+
+
+#print(X.shape,Y.shape)
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
@@ -79,8 +83,14 @@ X_two = (X[:,:,:,100:200])
 
 from sklearn.model_selection import train_test_split
 
+
 (Xtrain_one, Xtest_one, Ytrain, Ytest) = train_test_split(X_one, Y, random_state = 666, test_size = 0.75)
 (Xtrain_two, Xtest_two, Ytrain, Ytest) = train_test_split(X_two, Y, random_state = 666, test_size = 0.75)
+(a,b, c, Ytsne) = train_test_split(X_one, Ytsne, random_state = 666, test_size = 0.75)
+
+a= None
+b= None
+c = None
 
 
 def custom_loss(hall,orig):
@@ -114,6 +124,49 @@ streamonehall.load_weights("/home/SharedData/Avinandan/DarrellHallucination/stre
 
 streamone = load_model('/home/SharedData/Avinandan/DarrellHallucination/streamone.h5')
 #streamonehall = load_model('/home/SharedData/Avinandan/DarrellHallucination/streamonehall.h5') #custom_objects={ custom: custom_loss(hall,orig)} )
+
+#print(streamone.summary())
+#print(streamonehall.summary())
+
+from keras.models import Model
+
+streamonefeatures = Model(inputs=streamone.get_layer('Indian_Pines_Input_1').input,
+                       outputs=streamone.get_layer('Indian_Pines_Output_1').output)
+streamonehallfeatures = Model(inputs=streamonehall.get_layer('Indian_Pines_Input_2').input,
+                       outputs=streamonehall.get_layer('Indian_Pines_Output_1_Hallucinated').output)
+
+#print(streamonefeatures.summary())
+#print(streamonehallfeatures.summary())
+
+featuresorig = streamonefeatures.predict(Xtest_one)
+featureshall = streamonehallfeatures.predict(Xtest_two)
+
+print(featuresorig.shape, featureshall.shape)
+
+from sklearn.manifold import TSNE
+tsne = TSNE(n_components=2, random_state=666, verbose=2, perplexity = 40)
+
+#tsneorig = tsne.fit_transform(featuresorig)
+#tsnehall = tsne.fit_transform(featureshall)
+
+tsneorig = np.load('/home/SharedData/Avinandan/DarrellHallucination/tsneoneorig.npy')
+tsnehall = np.load('/home/SharedData/Avinandan/DarrellHallucination/tsneonehall.npy')
+
+print(tsneorig.shape, tsnehall.shape)
+
+#np.save('/home/SharedData/Avinandan/DarrellHallucination/tsneoneorig.npy', tsneorig)
+#np.save('/home/SharedData/Avinandan/DarrellHallucination/tsneonehall.npy', tsnehall)
+
+import matplotlib.pyplot as plt
+
+#print(Ytsne.shape)
+tsne_x=tsnehall[:,0]
+tsne_y=tsnehall[:,1]
+plt.scatter(tsne_x, tsne_y, c=Ytsne, cmap=plt.cm.get_cmap("jet", 10))
+plt.colorbar(ticks=range(10))
+plt.clim(-0.5, 9.5)
+plt.savefig('/home/SharedData/Avinandan/DarrellHallucination/tsneonehall.png')
+
 
 sgd = optimizers.SGD(lr=0.0001, momentum=0.9, decay=1e-6)
 streamone.compile(optimizer=sgd, loss='categorical_crossentropy',metrics=['accuracy'])
